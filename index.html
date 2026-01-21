@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>راديو داماشينو - نظام الاتصال اللاسلكي</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #1a2a6c, #2d388a); color: white; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; padding: 30px 0; border-bottom: 2px solid rgba(255,255,255,0.1); margin-bottom: 30px; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; color: #4fc3f7; }
+        .subtitle { color: #bbdefb; font-size: 1.2rem; }
+        .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .dashboard { grid-template-columns: 1fr; } }
+        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 15px; padding: 25px; border: 1px solid rgba(255,255,255,0.2); }
+        .login-card { grid-column: span 2; text-align: center; }
+        .status-card { background: rgba(0, 150, 136, 0.2); }
+        .users-card { background: rgba(103, 58, 183, 0.2); }
+        .card h3 { color: #80deea; margin-bottom: 20px; font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #bbdefb; }
+        input, select { width: 100%; padding: 12px 15px; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 16px; }
+        input:focus, select:focus { outline: none; border-color: #4fc3f7; }
+        .btn { background: linear-gradient(45deg, #2196F3, #21CBF3); color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin: 10px 5px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4); }
+        .btn-danger { background: linear-gradient(45deg, #f44336, #ff7961); }
+        .btn-success { background: linear-gradient(45deg, #4CAF50, #8BC34A); }
+        #pttBtn { width: 200px; height: 200px; border-radius: 50%; font-size: 24px; margin: 20px auto; display: block; border: 5px solid white; }
+        #pttBtn.ptt-active { background: linear-gradient(45deg, #f44336, #ff5252); transform: scale(1.1); box-shadow: 0 0 30px rgba(244, 67, 54, 0.7); }
+        .users-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .user-badge { background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 20px; display: flex; align-items: center; gap: 8px; }
+        .user-badge.security { border-left: 4px solid #4CAF50; }
+        .user-badge.management { border-left: 4px solid #2196F3; }
+        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+        .status-online { background: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
+        .status-offline { background: #f44336; }
+        .messages-box { height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 15px; margin-top: 20px; }
+        .message { padding: 10px; margin-bottom: 10px; border-radius: 8px; background: rgba(255,255,255,0.1); }
+        .message-header { display: flex; justify-content: space-between; color: #80deea; font-size: 0.9rem; margin-bottom: 5px; }
+        .message-text { color: white; }
+        .audio-message { background: rgba(33, 150, 243, 0.2); border-left: 4px solid #2196F3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📻 راديو داماشينو</h1>
+            <p class="subtitle">نظام الاتصال اللاسلكي المباشر - اتصال صوتي فوري بين الفرق</p>
+        </header>
+        
+        <div class="dashboard">
+            <div class="card login-card" id="loginSection">
+                <h3>🔐 تسجيل الدخول</h3>
+                <div class="form-group">
+                    <label for="userName">اسم المستخدم:</label>
+                    <input type="text" id="userName" placeholder="أدخل اسمك" value="فريق الأمن 1">
+                </div>
+                
+                <div class="form-group">
+                    <label for="userRole">دور المستخدم:</label>
+                    <select id="userRole">
+                        <option value="security">🔐 فريق الأمن</option>
+                        <option value="management">👔 فريق الإدارة</option>
+                    </select>
+                </div>
+                
+                <button class="btn" onclick="connect()" id="connectBtn">🚀 الاتصال بالنظام</button>
+            </div>
+            
+            <div class="card status-card" id="statusSection" style="display: none;">
+                <h3>📊 حالة الاتصال</h3>
+                <div id="connectionStatus">
+                    <p><span class="status-indicator status-offline"></span> غير متصل</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>القناة النشطة:</label>
+                    <div id="activeChannel">لم يتم تحديد قناة</div>
+                </div>
+                
+                <button class="btn btn-danger" onclick="disconnect()">❌ قطع الاتصال</button>
+            </div>
+            
+            <div class="card users-card">
+                <h3>👥 المستخدمون المتصلون</h3>
+                <div id="usersCount">0 مستخدم متصل</div>
+                <div class="users-list" id="usersList"></div>
+            </div>
+            
+            <div class="card">
+                <h3>🎤 التحكم في الإرسال</h3>
+                <div id="pttSection" style="display: none; text-align: center;">
+                    <p>اضغط مع الاستمرار على الزر للتحدث:</p>
+                    <button class="btn" id="pttBtn" 
+                            onmousedown="startPTT()" 
+                            onmouseup="stopPTT()"
+                            ontouchstart="startPTT()" 
+                            ontouchend="stopPTT()">
+                        🎤 PTT
+                    </button>
+                    <p id="pttStatus">جاهز للإرسال</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>💬 النشاط والرسائل</h3>
+            <div class="messages-box" id="messagesBox"></div>
+        </div>
+        
+        <div class="card" style="margin-top: 20px; text-align: center; background: rgba(0,0,0,0.3);">
+            <p>📡 نظام اتصال مباشر | جميع الحقوق محفوظة © 2024</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    
+    <script>
+        let socket = null;
+        let currentUser = {};
+        let isPTTActive = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let audioContext = null;
+        
+        const loginSection = document.getElementById('loginSection');
+        const statusSection = document.getElementById('statusSection');
+        const pttSection = document.getElementById('pttSection');
+        const connectBtn = document.getElementById('connectBtn');
+        const pttBtn = document.getElementById('pttBtn');
+        const pttStatus = document.getElementById('pttStatus');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const usersCount = document.getElementById('usersCount');
+        const usersList = document.getElementById('usersList');
+        const messagesBox = document.getElementById('messagesBox');
+        const activeChannel = document.getElementById('activeChannel');
+        
+        function connect() {
+            const userName = document.getElementById('userName').value.trim();
+            const userRole = document.getElementById('userRole').value;
+            
+            if (!userName) {
+                alert('الرجاء إدخال اسم المستخدم');
+                return;
+            }
+            
+            connectBtn.disabled = true;
+            connectBtn.innerHTML = 'جاري الاتصال...';
+            
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('✅ متصل بالخادم:', socket.id);
+                
+                currentUser = {
+                    id: socket.id,
+                    name: userName,
+                    role: userRole,
+                    connectedAt: new Date()
+                };
+                
+                socket.emit('register', currentUser);
+                
+                loginSection.style.display = 'none';
+                statusSection.style.display = 'block';
+                pttSection.style.display = 'block';
+                
+                connectionStatus.innerHTML = `
+                    <p><span class="status-indicator status-online"></span> متصل بنجاح</p>
+                    <p>معرف الاتصال: ${socket.id.substring(0, 8)}...</p>
+                `;
+                
+                const channelName = userRole === 'security' ? '🔐 قناة الأمن' : '👔 قناة الإدارة';
+                activeChannel.innerHTML = channelName;
+                
+                addMessage('system', `مرحباً ${userName}! تم الاتصال بنجاح بقناة ${channelName}`);
+            });
+            
+            socket.on('registered', (data) => {
+                console.log('✅ تم التسجيل:', data);
+                connectBtn.innerHTML = '🚀 متصل';
+                addMessage('system', 'تم تفعيل حسابك في النظام');
+            });
+            
+            socket.on('ptt-audio', (data) => {
+                console.log('🎧 صوت مستلم من:', data.userName);
+                playAudio(data.audioData);
+                addMessage('audio', `${data.userName} يتحدث...`, data.userName);
+            });
+            
+            socket.on('ptt-status', (data) => {
+                if (data.status === 'started') {
+                    addMessage('status', `${data.userName} بدأ الإرسال`, data.userName);
+                } else {
+                    addMessage('status', `${data.userName} توقف عن الإرسال`, data.userName);
+                }
+            });
+            
+            socket.on('message', (data) => {
+                addMessage('text', data.message, data.userName);
+            });
+            
+            socket.on('security-update', (data) => {
+                updateUsersList(data);
+            });
+            
+            socket.on('disconnect', () => {
+                connectionStatus.innerHTML = '<p><span class="status-indicator status-offline"></span> انقطع الاتصال</p>';
+                addMessage('system', 'انقطع الاتصال بالخادم');
+                reconnect();
+            });
+            
+            socket.on('connect_error', (error) => {
+                console.error('❌ خطأ في الاتصال:', error);
+                addMessage('system', 'خطأ في الاتصال بالخادم');
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '🔄 إعادة الاتصال';
+            });
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            loginSection.style.display = 'block';
+            statusSection.style.display = 'none';
+            pttSection.style.display = 'none';
+            connectBtn.disabled = false;
+            connectBtn.innerHTML = '🚀 الاتصال بالنظام';
+            
+            stopPTT();
+            
+            addMessage('system', 'تم قطع الاتصال بالنظام');
+        }
+        
+        function reconnect() {
+            setTimeout(() => {
+                if (!socket || !socket.connected) {
+                    addMessage('system', 'جاري إعادة الاتصال...');
+                    connect();
+                }
+            }, 3000);
+        }
+        
+        async function startPTT() {
+            if (isPTTActive || !socket || !socket.connected) return;
+            
+            isPTTActive = true;
+            pttBtn.classList.add('ptt-active');
+            pttStatus.textContent = 'جاري الإرسال...';
+            
+            socket.emit('ptt-status', {
+                channel: currentUser.role,
+                status: 'started',
+                userId: currentUser.id,
+                userName: currentUser.name
+            });
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            socket.emit('ptt-audio', {
+                                channel: currentUser.role,
+                                audioData: reader.result,
+                                userId: currentUser.id,
+                                userName: currentUser.name,
+                                timestamp: Date.now()
+                            });
+                        };
+                        reader.readAsDataURL(event.data);
+                    }
+                };
+                
+                mediaRecorder.start(250);
+                
+            } catch (error) {
+                console.error('❌ خطأ في الميكروفون:', error);
+                pttStatus.textContent = 'خطأ في الميكروفون';
+                stopPTT();
+                alert('❌ خطأ في الوصول إلى الميكروفون. الرجاء التحقق من الصلاحيات.');
+            }
+        }
+        
+        function stopPTT() {
+            if (!isPTTActive) return;
+            
+            isPTTActive = false;
+            pttBtn.classList.remove('ptt-active');
+            pttStatus.textContent = 'جاهز للإرسال';
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            if (mediaRecorder && mediaRecorder.stream) {
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            if (socket && socket.connected) {
+                socket.emit('ptt-status', {
+                    channel: currentUser.role,
+                    status: 'stopped',
+                    userId: currentUser.id,
+                    userName: currentUser.name
+                });
+            }
+        }
+        
+        function playAudio(audioData) {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                const byteString = atob(audioData.split(',')[1]);
+                const mimeString = audioData.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                
+                const blob = new Blob([ab], { type: mimeString });
+                const audioUrl = URL.createObjectURL(blob);
+                
+                const audioElement = new Audio(audioUrl);
+                audioElement.play().catch(e => console.log('❌ خطأ في تشغيل الصوت:', e));
+                
+            } catch (error) {
+                console.error('❌ خطأ في تشغيل الصوت:', error);
+            }
+        }
+        
+        function updateUsersList(data) {
+            const count = data.count || 0;
+            usersCount.textContent = `${count} مستخدم متصل`;
+            
+            if (data.user) {
+                const userExists = Array.from(usersList.children).some(child => 
+                    child.textContent.includes(data.user)
+                );
+                
+                if (data.type === 'user_joined' && !userExists) {
+                    const badge = document.createElement('div');
+                    badge.className = `user-badge ${currentUser.role}`;
+                    badge.innerHTML = `
+                        <span class="status-indicator status-online"></span>
+                        ${data.user}
+                    `;
+                    usersList.appendChild(badge);
+                }
+                
+                if (data.type === 'user_left') {
+                    const badges = usersList.querySelectorAll('.user-badge');
+                    badges.forEach(badge => {
+                        if (badge.textContent.includes(data.user)) {
+                            badge.remove();
+                        }
+                    });
+                }
+            }
+        }
+        
+        function addMessage(type, text, sender = 'النظام') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            const time = new Date().toLocaleTimeString('ar-SA', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <span>${sender}</span>
+                    <span>${time}</span>
+                </div>
+                <div class="message-text">${text}</div>
+            `;
+            
+            messagesBox.appendChild(messageDiv);
+            messagesBox.scrollTop = messagesBox.scrollHeight;
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && socket && socket.connected) {
+                e.preventDefault();
+                startPTT();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                stopPTT();
+            }
+        });
+        
+        window.onload = () => {
+            addMessage('system', 'مرحباً بك في نظام راديو داماشينو. قم بتسجيل الدخول لبدء الاتصال.');
+        };
+    </script>
+</body>
+</html>
